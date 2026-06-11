@@ -1,0 +1,36 @@
+name: Update predictions
+
+# During the tournament (June 11 – July 19, 2026) the source dataset is
+# refreshed after every matchday. This workflow re-fetches results, refits
+# the models and commits new prediction artifacts daily at 06:00 UTC; the
+# Streamlit Cloud app redeploys automatically on push.
+
+on:
+  schedule:
+    - cron: "0 6 11-30 6 *"   # daily, June 11-30
+    - cron: "0 6 1-19 7 *"    # daily, July 1-19
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python scripts/run_simulation.py --refresh-data --sims 10000
+      - name: Run tests
+        run: pytest tests/ -q
+      - name: Commit updated predictions
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add predictions/
+          git diff --cached --quiet || git commit -m "Update predictions $(date -u +%F)"
+          git push
