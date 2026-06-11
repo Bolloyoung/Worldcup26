@@ -1,0 +1,183 @@
+"""World Cup 2026 prediction dashboard.
+
+Reads the precomputed artifacts in predictions/ (so the deployed app needs
+no model fitting at startup) and reconstructs the probability engine from
+the serialised parameters for the interactive match predictor.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from src.models.dixon_coles import DixonColesModel  # noqa: E402
+from src.models.elo import EloRatings  # noqa: E402
+from src.models.engine import ProbabilityEngine  # noqa: E402
+from src.simulation.worldcup import GROUPS, TEAM_TO_GROUP  # noqa: E402
+
+PRED = ROOT / "predictions"
+
+st.set_page_config(
+    page_title="World Cup 2026 Predictions", page_icon="🏆", layout="wide"
+)
+
+
+@st.cache_data
+def load_artifacts():
+    forecast = pd.read_json(PRED / "tournament_forecast.json")
+    fixtures = pd.DataFrame(
+        json.loads((PRED / "group_fixtures.json").read_text())
+    )
+    model = json.loads((PRED / "model.json").read_text())
+    return forecast, fixtures, model
+
+
+@st.cache_resource
+def load_engine():
+    model = json.loads((PRED / "model.json").read_text())
+    dc = DixonColesModel.from_dict(model["dixon_coles"])
+    elo = EloRatings()
+    elo.ratings.update(model["elo"])
+    return ProbabilityEngine(dc, elo)
+
+
+forecast, fixtures, model = load_artifacts()
+meta = model["meta"]
+
+st.title("🏆 FIFA World Cup 2026 — Prediction Engine")
+st.caption(
+    f"Dixon-Coles + Elo ensemble · fitted {meta['fitted']} on "
+    f"{meta['n_train_matches']:,} internationals · "
+    f"{meta['n_tournaments']:,} Monte Carlo tournaments · "
+    "48 teams, June 11 – July 19, 2026"
+)
+
+tab_title, tab_groups, tab_fixtures, tab_match, tab_about = st.tabs(
+    ["🥇 Title Race", "📋 Groups", "📅 Fixtures", "⚽ Match Predictor", "ℹ️ Model"]
+)
+
+with tab_title:
+    top = forecast.head(15).copy()
+    fig = go.Figure()
+    for col, name, color in [
+        ("p_champion", "Champion", "#d4af37"),
+        ("p_final", "Reach final", "#8884d8"),
+        ("p_sf", "Reach semi-final", "#82ca9d"),
+    ]:
+        fig.add_trace(
+            go.Bar(
+                y=top["team"], x=top[col] * 100, name=name,
+                orientation="h", marker_color=color,
+            )
+        )
+    fig.update_layout(
+        barmode="group", height=600, xaxis_title="Probability (%)",
+        yaxis=dict(autorange="reversed"), legend=dict(orientation="h"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Most likely finals")
+    finals = pd.DataFrame(meta["top_finals"])
+    finals["prob"] = (finals["prob"] * 100).round(2).astype(str) + " %"
+    st.dataframe(finals, hide_index=True, use_container_width=True)
+
+    st.subheader("Full forecast (all 48 teams)")
+    show = forecast.copy()
+    pct_cols = [c for c in show.columns if c.startswith("p_")]
+    show[pct_cols] = (show[pct_cols] * 100).round(2)
+    st.dataframe(show, hide_index=True, use_container_width=True, height=500)
+
+with tab_groups:
+    cols = st.columns(3)
+    for i, (g, teams) in enumerate(GROUPS.items()):
+        with cols[i % 3]:
+            st.markdown(f"**Group {g}**")
+            sub = forecast[forecast["team"].isin(teams)][
+                ["team", "p_group_pos1", "p_group_pos2", "p_r32"]
+            ].copy()
+            sub.columns = ["Team", "Win group", "2nd", "Reach R32"]
+            for c in ["Win group", "2nd", "Reach R32"]:
+                sub[c] = (sub[c] * 100).round(1)
+            sub = sub.sort_values("Reach R32", ascending=False)
+            st.dataframe(sub, hide_index=True, use_container_width=True)
+
+with tab_fixtures:
+    day = st.selectbox("Date", sorted(fixtures["date"].unique()))
+    sub = fixtures[fixtures["date"] == day].copy()
+    for c in ["p_home", "p_draw", "p_away"]:
+        sub[c] = (sub[c] * 100).round(1)
+    sub = sub.rename(
+        columns={
+            "p_home": "Home %", "p_draw": "Draw %", "p_away": "Away %",
+            "xg_home": "xG home", "xg_away": "xG away",
+            "most_likely_score": "Top score",
+        }
+    )
+    st.dataframe(sub, hide_index=True, use_container_width=True)
+
+with tab_match:
+    engine = load_engine()
+    teams48 = sorted(TEAM_TO_GROUP)
+    c1, c2, c3 = st.columns([2, 2, 1])
+    home = c1.selectbox("Team 1", teams48, index=teams48.index("Spain"))
+    away = c2.selectbox("Team 2", teams48, index=teams48.index("Argentina"))
+    host_home = c3.checkbox(
+        "Team 1 plays at home", value=home in ("United States", "Mexico", "Canada")
+    )
+    if home == away:
+        st.warning("Pick two different teams.")
+    else:
+        p = engine.predict(home, away, neutral=not host_home)
+        m1, m2, m3 = st.columns(3)
+        m1.metric(f"{home} win", f"{p['home_win'] * 100:.1f} %")
+        m2.metric("Draw", f"{p['draw'] * 100:.1f} %")
+        m3.metric(f"{away} win", f"{p['away_win'] * 100:.1f} %")
+        st.caption(
+            f"Expected goals {p['expected_home_goals']:.2f} – "
+            f"{p['expected_away_goals']:.2f} · Elo {p['elo_home']} vs "
+            f"{p['elo_away']}"
+        )
+        mat = p["score_matrix"][:6, :6]
+        fig = px.imshow(
+            mat * 100,
+            labels=dict(x=f"{away} goals", y=f"{home} goals", color="%"),
+            text_auto=".1f", color_continuous_scale="Blues",
+        )
+        fig.update_layout(height=450)
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown("**Most likely scorelines**")
+        lines = pd.DataFrame(p["top_scorelines"][:8])
+        lines["prob"] = (lines["prob"] * 100).round(2).astype(str) + " %"
+        lines["score"] = (
+            lines["home_goals"].astype(str) + "-" + lines["away_goals"].astype(str)
+        )
+        st.dataframe(
+            lines[["score", "prob"]], hide_index=True, use_container_width=False
+        )
+
+with tab_about:
+    st.markdown(
+        """
+### How it works
+
+| Layer | Detail |
+|---|---|
+| **Data** | All official men's internationals since 2018 (~8k matches) from the community-maintained [martj42/international_results](https://github.com/martj42/international_results) dataset, refreshed after every matchday. Competition-weighted: World Cup 1.6× … friendlies 0.6×. |
+| **Dixon-Coles** | Bivariate Poisson with low-score correlation (ρ), exponential time decay (ξ = 0.0012 ≈ half-weight after 19 months), per-match neutral-venue handling, fitted by L-BFGS-B with analytic gradients over 231 national teams. |
+| **Elo** | eloratings.net-style ratings since 2010, K-factor by competition (World Cup 60 … friendlies 20), goal-difference multiplier. |
+| **Ensemble** | The Elo gap nudges the Dixon-Coles goal rates: λ × exp(±0.18·Δelo/400). |
+| **Simulation** | 10,000 full tournaments: 72 group games, FIFA tiebreakers, best-8 third-place allocation via constraint matching, official bracket (matches 73–104), extra time at 33% goal rate, Elo-informed penalty shootouts, host advantage for 🇺🇸 🇲🇽 🇨🇦 (50% discounted in knockouts). |
+
+Built by adapting the UCL prediction system (Dixon-Coles + Elo + Monte Carlo)
+to the 48-team international format.
+        """
+    )
