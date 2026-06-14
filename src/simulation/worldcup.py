@@ -129,11 +129,15 @@ class WorldCupSimulator:
         n_tournaments: int = N_TOURNAMENTS,
         seed: int = SEED,
         max_goals: int = MAX_GOALS,
+        known_results: dict[tuple[str, str], tuple[int, int]] | None = None,
     ) -> None:
         self.engine = engine
         self.fixtures = fixtures
         self.n = n_tournaments
         self.max_goals = max_goals
+        # Completed group fixtures, locked to their actual scores so the
+        # forecast conditions on matches that have already been played.
+        self.known_results = known_results or {}
         self._rng = np.random.default_rng(seed)
         self._table_cache: dict[tuple, np.ndarray] = {}
 
@@ -148,6 +152,10 @@ class WorldCupSimulator:
             lam1, lam2 = self.engine.lambdas(home, away, neutral, host_adv_factor)
             if et:
                 lam1, lam2 = lam1 * ET_SCALE, lam2 * ET_SCALE
+            # Use the untempered Dixon-Coles matrix here: the engine lambdas
+            # already carry the host/confederation/squad adjustments, but the
+            # display temperature is a single-match calibration and must not
+            # compound across the 7 simulated knockout rounds.
             mat = self.engine.dc.score_matrix_from_lambdas(
                 lam1, lam2, self.max_goals
             )
@@ -226,12 +234,22 @@ class WorldCupSimulator:
 
     def run(self) -> dict[str, Any]:
         n = self.n
-        # Pre-sample all 72 group fixtures for every tournament at once.
+        # Pre-sample all group fixtures for every tournament at once. Fixtures
+        # with a known result are locked to their actual score (a constant
+        # array) so completed matches are never re-simulated.
         group_scores: dict[int, tuple[np.ndarray, np.ndarray]] = {}
         for i, row in enumerate(self.fixtures.itertuples(index=False)):
-            group_scores[i] = self._sample_scores(
-                row.home_team, row.away_team, bool(row.neutral), 1.0, n
-            )
+            res = self.known_results.get((row.home_team, row.away_team))
+            if res is not None:
+                hg, ag = res
+                group_scores[i] = (
+                    np.full(n, hg, dtype=np.int64),
+                    np.full(n, ag, dtype=np.int64),
+                )
+            else:
+                group_scores[i] = self._sample_scores(
+                    row.home_team, row.away_team, bool(row.neutral), 1.0, n
+                )
 
         reach = {r: defaultdict(int) for r in ROUNDS[1:]}
         group_pos = defaultdict(lambda: np.zeros(4, dtype=np.int64))

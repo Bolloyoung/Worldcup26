@@ -19,10 +19,12 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from src.betting import betting_card  # noqa: E402
 from src.models.dixon_coles import DixonColesModel  # noqa: E402
 from src.models.elo import EloRatings  # noqa: E402
 from src.models.engine import ProbabilityEngine  # noqa: E402
 from src.simulation.worldcup import GROUPS, TEAM_TO_GROUP  # noqa: E402
+from src.squads import build_squad_index  # noqa: E402
 
 PRED = ROOT / "predictions"
 
@@ -47,7 +49,7 @@ def load_engine():
     dc = DixonColesModel.from_dict(model["dixon_coles"])
     elo = EloRatings()
     elo.ratings.update(model["elo"])
-    return ProbabilityEngine(dc, elo)
+    return ProbabilityEngine(dc, elo, squad_index=build_squad_index())
 
 
 forecast, fixtures, model = load_artifacts()
@@ -164,6 +166,54 @@ with tab_match:
             lines[["score", "prob"]], hide_index=True, use_container_width=False
         )
 
+        # ── Betting interpretation ────────────────────────────────────────
+        st.divider()
+        st.subheader("💡 Betting interpretation")
+        card = betting_card(p)
+
+        tier_color = {
+            "Strong": "🟢", "Lean": "🟡", "Slight lean": "🟡",
+            "Avoid": "🔴",
+        }.get(card["confidence"], "🟡")
+        st.markdown(f"### {tier_color} {card['headline']}")
+        if card["tie_flag"]:
+            st.warning(f"⚖️ {card['tie_flag']}")
+
+        b1, b2, b3 = st.columns(3)
+        b1.metric(
+            "Primary suggestion", card["primary_market"]["selection"],
+            f"{card['primary_market']['probability'] * 100:.0f}%",
+        )
+        b2.metric("Scoreline banker", card["scoreline_banker"]["score"],
+                  f"{card['scoreline_banker']['probability'] * 100:.1f}%")
+        b3.metric("Confidence", card["confidence"])
+
+        st.markdown(
+            "**Cover (top-3 scorelines):** "
+            + " · ".join(
+                f"{s['score']} ({s['probability'] * 100:.0f}%)"
+                for s in card["scoreline_cover"]
+            )
+        )
+        if card["alternatives"]:
+            for alt in card["alternatives"]:
+                st.markdown(f"- {alt}")
+
+        dm = card["derived_markets"]
+        st.markdown("**Derived markets**")
+        md1, md2, md3, md4 = st.columns(4)
+        md1.metric("Over 2.5", f"{dm['over_2_5'] * 100:.0f}%")
+        md2.metric("Under 2.5", f"{dm['under_2_5'] * 100:.0f}%")
+        md3.metric("BTTS yes", f"{dm['btts_yes'] * 100:.0f}%")
+        md4.metric("BTTS no", f"{dm['btts_no'] * 100:.0f}%")
+        md5, md6, md7, md8 = st.columns(4)
+        md5.metric("1X", f"{dm['double_chance_1X'] * 100:.0f}%")
+        md6.metric("12", f"{dm['double_chance_12'] * 100:.0f}%")
+        md7.metric("X2", f"{dm['double_chance_X2'] * 100:.0f}%")
+        md8.metric("DNB home", f"{dm['draw_no_bet_home'] * 100:.0f}%")
+
+        st.caption(card["disclaimer"])
+
 with tab_about:
     st.markdown(
         """
@@ -172,12 +222,14 @@ with tab_about:
 | Layer | Detail |
 |---|---|
 | **Data** | All official men's internationals since 2018 (~8k matches) from the community-maintained [martj42/international_results](https://github.com/martj42/international_results) dataset, refreshed after every matchday. Competition-weighted: World Cup 1.6× … friendlies 0.6×. |
-| **Dixon-Coles** | Bivariate Poisson with low-score correlation (ρ), exponential time decay (ξ = 0.0012 ≈ half-weight after 19 months), per-match neutral-venue handling, fitted by L-BFGS-B with analytic gradients over 231 national teams. |
+| **Dixon-Coles** | Bivariate Poisson with low-score correlation (ρ), exponential time decay, **ridge regularisation** (curbs overconfidence), per-match neutral-venue handling, fitted by L-BFGS-B with analytic gradients over 231 national teams. |
 | **Elo** | eloratings.net-style ratings since 2010, K-factor by competition (World Cup 60 … friendlies 20), goal-difference multiplier. |
-| **Ensemble** | The Elo gap nudges the Dixon-Coles goal rates: λ × exp(±0.18·Δelo/400). |
-| **Simulation** | 10,000 full tournaments: 72 group games, FIFA tiebreakers, best-8 third-place allocation via constraint matching, official bracket (matches 73–104), extra time at 33% goal rate, Elo-informed penalty shootouts, host advantage for 🇺🇸 🇲🇽 🇨🇦 (50% discounted in knockouts). |
+| **Ensemble** | The Elo gap nudges the goal rates: λ × exp(±0.12·Δelo*/400) × squad_ratio^0.15, where Δelo* adds a **host boost** (🇺🇸🇲🇽🇨🇦) and an **inter-confederation shrink**; single-match output is **temperature-calibrated**. |
+| **Squad** | Projected national XIs → a squad-strength index blended into the goal rates (the injuries/form hook); teams without squads fall back gracefully. |
+| **Calibration** | Ridge + temperature tuned on the 2018 & 2022 World Cups (`scripts/backtest.py`): log-loss +2.0% vs the original, worst single-match call 91% → ~64%. |
+| **Simulation** | 10,000 full tournaments, **conditioned on completed matches**: 72 group games, FIFA tiebreakers, best-8 third-place allocation via constraint matching, official bracket (matches 73–104), extra time at 33% goal rate, Elo-informed penalty shootouts. |
 
 Built by adapting the UCL prediction system (Dixon-Coles + Elo + Monte Carlo)
-to the 48-team international format.
+to the 48-team international format, then recalibrated after the matchday-1 review.
         """
     )

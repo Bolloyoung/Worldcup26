@@ -48,6 +48,18 @@ DEFAULT_COMPETITION_WEIGHT = 0.8
 DC_XI = 0.0012
 DC_MIN_WEIGHT = 0.01
 
+# L2 (ridge) penalty on the log attack/defense parameters. Shrinks every team
+# toward the league-average (log-param 0), which stops minnow-beating teams
+# from collapsing their defense parameter toward zero and emitting absurdly
+# overconfident scorelines (the matchday-1 Qatar-Switzerland 91% failure).
+# 0 = unregularised (old behaviour); tuned by scripts/backtest.py. The penalty
+# is scaled by total match weight, so this is a small per-match value.
+# A small ridge (0.001) is the sweet spot: it removes the worst single-match
+# overconfidence (Qatar-Switzerland 91% → ~69% with temperature) while keeping
+# enough elite separation for a sensible title race. Larger values flatten the
+# tournament (e.g. Japan rising to a top-4 favourite). Best backtest log-loss.
+DC_RIDGE = 0.001
+
 # Elo settings (international football, eloratings.net-style K factors).
 ELO_K: dict[str, float] = {
     "FIFA World Cup": 60.0,
@@ -67,7 +79,34 @@ ELO_START_DATE = "2010-01-01"
 
 # Probability engine: how strongly the Elo gap nudges the DC goal rates.
 # lambda_home *= exp(+ELO_NUDGE * elo_diff/400), lambda_away *= exp(-...).
-ELO_NUDGE = 0.18
+# Lowered from 0.18 → 0.12: the original value over-extrapolated cross-pool
+# Elo gaps and compounded the Dixon-Coles overconfidence. Backtest-tuned.
+ELO_NUDGE = 0.12
+
+# Display/decision calibration. After deriving the score matrix, outcome
+# probabilities are flattened by a temperature T >= 1 (p_i ** (1/T), then
+# renormalised at the score-matrix level so scorelines stay consistent).
+# 1.0 = no change. The 2018/2022 backtest strongly favours T > 1 — it is the
+# single biggest fix for the matchday-1 overconfidence (Qatar-Switzerland 91%).
+CALIB_TEMPERATURE = 1.20
+
+# Explicit World Cup host boost (Elo points) for USA / Mexico / Canada, added
+# to their effective rating in WC matches. The backtest only weakly rewards
+# this (Qatar 2022 hosts lost all three games), so it is kept modest rather
+# than at the grid's lowest edge — USA/Mexico are stronger hosts than Qatar.
+HOST_ELO_BONUS = 55.0
+
+# Inter-confederation reliability shrink. When two teams are from different
+# confederations the rating gap rests on few bridging matches, so we shrink it
+# toward parity by this factor before computing goal rates (1.0 = no shrink).
+# Directly softens cross-pool extremes like Qatar (AFC) vs Switzerland (UEFA).
+INTER_CONF_SHRINK = 0.90
+
+# Weight of the squad-strength index when blended into the goal rates.
+# 0 = ignore squads entirely (pure DC+Elo); tuned by backtest. This is the
+# hook for current-squad reality (injuries/form): editing data/squads.json
+# moves the forecast.
+SQUAD_WEIGHT = 0.15
 
 # Hosts get a (reduced) home advantage in knockout rounds: every venue is in
 # a host country, but which venue a knockout match lands in is bracket

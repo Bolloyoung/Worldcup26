@@ -18,10 +18,11 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.config import ELO_START_DATE, N_TOURNAMENTS, PREDICTIONS_DIR, SEED
+from src.config import DC_RIDGE, ELO_START_DATE, N_TOURNAMENTS, PREDICTIONS_DIR, SEED
 from src.data.fetch import (
     download_results,
     elo_matches,
+    played_results,
     training_matches,
     verify_groups,
     wc2026_group_fixtures,
@@ -30,6 +31,7 @@ from src.models.dixon_coles import DixonColesModel
 from src.models.elo import EloRatings
 from src.models.engine import ProbabilityEngine
 from src.simulation.worldcup import GROUPS, TEAM_TO_GROUP, WorldCupSimulator
+from src.squads import build_squad_index
 
 
 def main() -> None:
@@ -50,7 +52,7 @@ def main() -> None:
 
     print("2/5 Fitting Dixon-Coles …")
     train = training_matches(raw)
-    dc = DixonColesModel().fit(train, reference_date=pd.Timestamp("2026-06-11"))
+    dc = DixonColesModel(ridge=DC_RIDGE).fit(train, reference_date=pd.Timestamp("2026-06-11"))
     print(
         f"    {len(train):,} matches, {len(dc.teams)} teams, "
         f"home_adv={dc.home_advantage:.3f}, rho={dc.rho:.3f}"
@@ -61,11 +63,16 @@ def main() -> None:
 
     print("3/5 Fitting Elo …")
     elo = EloRatings().fit(elo_matches(raw, ELO_START_DATE))
-    engine = ProbabilityEngine(dc, elo)
+    squad_index = build_squad_index()
+    engine = ProbabilityEngine(dc, elo, squad_index=squad_index)
+    print(f"    squad index built for {len(squad_index)} teams")
 
-    print(f"4/5 Simulating {args.sims:,} tournaments …")
+    known = played_results(raw)
+    print(f"4/5 Simulating {args.sims:,} tournaments "
+          f"(conditioned on {len(known)} played matches) …")
     sim = WorldCupSimulator(
-        engine, fixtures, n_tournaments=args.sims, seed=args.seed
+        engine, fixtures, n_tournaments=args.sims, seed=args.seed,
+        known_results=known,
     )
     result = sim.run()
     forecast = result["forecast"]

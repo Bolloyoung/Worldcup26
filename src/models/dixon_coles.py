@@ -49,8 +49,9 @@ def _nll_and_grad(
     home_flag: np.ndarray,  # 1.0 where home advantage applies, else 0.0
     w: np.ndarray,
     n: int,
+    ridge: float = 0.0,     # L2 penalty on log attack/defense params
 ) -> tuple[float, np.ndarray]:
-    """Weighted negative log-likelihood and its analytic gradient."""
+    """Weighted negative log-likelihood (+ ridge) and its analytic gradient."""
     log_atk = params[:n]
     log_def = params[n:2 * n]
     log_gamma = params[2 * n]
@@ -111,15 +112,32 @@ def _nll_and_grad(
     grad[2 * n] = float(np.sum(g1 * home_flag))
     grad[2 * n + 1] = float(np.sum(w * dlt_drho))
 
-    return nll, -grad
+    grad = -grad
+
+    # Ridge penalty shrinks log attack/defense toward 0 (= average team).
+    # Scaled by the total weight so the penalty strength is independent of
+    # how many matches / how they are weighted.
+    if ridge > 0.0:
+        scale = ridge * float(np.sum(w))
+        ad = params[:2 * n]
+        nll += 0.5 * scale * float(np.dot(ad, ad))
+        grad[:2 * n] += scale * ad
+
+    return nll, grad
 
 
 class DixonColesModel:
     """Dixon-Coles model with time decay and competition weights."""
 
-    def __init__(self, xi: float = 0.0012, min_weight: float = 0.01) -> None:
+    def __init__(
+        self,
+        xi: float = 0.0012,
+        min_weight: float = 0.01,
+        ridge: float = 0.001,
+    ) -> None:
         self.xi = xi
         self.min_weight = min_weight
+        self.ridge = ridge
 
         self.teams: list[str] = []
         self._team_idx: dict[str, int] = {}
@@ -181,7 +199,7 @@ class DixonColesModel:
         result = minimize(
             _nll_and_grad,
             x0,
-            args=(h_idx, a_idx, x, y, home_flag, w, n),
+            args=(h_idx, a_idx, x, y, home_flag, w, n, self.ridge),
             method="L-BFGS-B",
             jac=True,
             bounds=bounds,
@@ -286,6 +304,7 @@ class DixonColesModel:
         return {
             "xi": self.xi,
             "min_weight": self.min_weight,
+            "ridge": self.ridge,
             "teams": self.teams,
             "attack_params": self.attack_params,
             "defense_params": self.defense_params,
@@ -295,7 +314,7 @@ class DixonColesModel:
 
     @classmethod
     def from_dict(cls, d: dict) -> "DixonColesModel":
-        m = cls(xi=d["xi"], min_weight=d["min_weight"])
+        m = cls(xi=d["xi"], min_weight=d["min_weight"], ridge=d.get("ridge", 0.0))
         m.teams = d["teams"]
         m._team_idx = {t: i for i, t in enumerate(m.teams)}
         m.attack_params = d["attack_params"]

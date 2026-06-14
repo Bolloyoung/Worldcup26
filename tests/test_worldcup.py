@@ -2,6 +2,7 @@
 
 import itertools
 
+import numpy as np
 import pytest
 
 from src.simulation.worldcup import (
@@ -13,8 +14,35 @@ from src.simulation.worldcup import (
     SF,
     TEAM_TO_GROUP,
     THIRD_SLOTS,
+    WorldCupSimulator,
     allocate_thirds,
 )
+
+
+class _DummyEngine:
+    """Engine stub: every match is a coin-flip-ish draw distribution."""
+
+    def __init__(self):
+        self.dc = self  # simulator reads engine.dc.score_matrix_from_lambdas
+
+    def lambdas(self, home, away, neutral=True, host_adv_factor=1.0):
+        return 1.2, 1.2
+
+    def score_matrix_from_lambdas(self, lam1, lam2, max_goals=10):
+        mat = np.ones((max_goals + 1, max_goals + 1))
+        return mat / mat.sum()
+
+    def pen_shootout_p_home(self, home, away):
+        return 0.5
+
+
+@pytest.fixture(scope="module")
+def cached_fixtures():
+    from src.data.fetch import download_results, wc2026_group_fixtures
+    from src.config import RESULTS_CSV_PATH
+    if not RESULTS_CSV_PATH.exists():
+        pytest.skip("cached results.csv not available")
+    return wc2026_group_fixtures(download_results())
 
 
 def test_draw_has_48_unique_teams_in_12_groups():
@@ -73,3 +101,27 @@ def test_thirds_allocation_known_combo():
     alloc = allocate_thirds(["A", "B", "C", "D", "E", "F", "G", "H"])
     assert alloc is not None
     assert len(alloc) == 8
+
+
+def test_locked_group_results_are_deterministic(cached_fixtures):
+    """Lock all six Group A fixtures so its standings are fully determined."""
+    rank = {t: r for r, t in enumerate(GROUPS["A"])}  # 0 = strongest
+    known: dict[tuple[str, str], tuple[int, int]] = {}
+    for row in cached_fixtures.itertuples(index=False):
+        if TEAM_TO_GROUP[row.home_team] == "A" and TEAM_TO_GROUP[row.away_team] == "A":
+            # higher-ranked (lower index) team wins 2-0
+            if rank[row.home_team] < rank[row.away_team]:
+                known[(row.home_team, row.away_team)] = (2, 0)
+            else:
+                known[(row.home_team, row.away_team)] = (0, 2)
+
+    sim = WorldCupSimulator(
+        _DummyEngine(), cached_fixtures, n_tournaments=50, seed=1,
+        known_results=known,
+    )
+    forecast = sim.run()["forecast"]
+    fa = forecast[forecast["group"] == "A"].set_index("team")
+    winner = GROUPS["A"][0]
+    loser = GROUPS["A"][3]
+    assert fa.loc[winner, "p_group_pos1"] == 1.0   # always tops the group
+    assert fa.loc[loser, "p_group_pos4"] == 1.0     # always bottom

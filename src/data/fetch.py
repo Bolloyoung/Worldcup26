@@ -122,6 +122,32 @@ def wc2026_group_fixtures(df: pd.DataFrame | None = None) -> pd.DataFrame:
     return out[cols].sort_values("date").reset_index(drop=True)
 
 
+def played_results(df: pd.DataFrame | None = None) -> dict[tuple[str, str], tuple[int, int]]:
+    """
+    Group-stage fixtures that already have a score, as
+    {(home_team, away_team): (goals_home, goals_away)}.
+
+    Lets the tournament simulator condition on what's actually happened
+    rather than re-simulating completed matches.
+    """
+    if df is None:
+        df = download_results()
+    out = df.copy()
+    out["date"] = pd.to_datetime(out["date"])
+    mask = (
+        (out["tournament"] == "FIFA World Cup")
+        & (out["date"] >= pd.Timestamp("2026-06-01"))
+        & (out["date"] <= pd.Timestamp(GROUP_STAGE_END))
+        & out["home_score"].notna()
+        & out["away_score"].notna()
+    )
+    out = out[mask]
+    return {
+        (r["home_team"], r["away_team"]): (int(r["home_score"]), int(r["away_score"]))
+        for _, r in out.iterrows()
+    }
+
+
 def verify_groups(fixtures: pd.DataFrame, groups: dict[str, list[str]]) -> None:
     """
     Cross-check the hard-coded draw against the fixture graph: each group of
