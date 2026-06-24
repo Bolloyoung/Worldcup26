@@ -30,10 +30,13 @@ from src.models.dixon_coles import DixonColesModel
 from src.models.elo import EloRatings
 from src.models.engine import ProbabilityEngine
 
-# (host team, tournament start, tournament end)
+# (hosts, tournament start, tournament end). WC2026 is in progress: only its
+# completed matches carry scores (the rest are dropped by _prep), so including
+# it re-tunes the calibration on the live tournament as results accumulate.
 TOURNAMENTS = [
-    ("Russia", "2018-06-14", "2018-07-15"),
-    ("Qatar", "2022-11-20", "2022-12-18"),
+    (("Russia",), "2018-06-14", "2018-07-15"),
+    (("Qatar",), "2022-11-20", "2022-12-18"),
+    (("United States", "Mexico", "Canada"), "2026-06-11", "2026-07-19"),
 ]
 TRAIN_YEARS = 8
 
@@ -74,20 +77,22 @@ def _fits(raw: pd.DataFrame, ridge: float):
     if key not in _FIT_CACHE:
         df = _prep(raw)
         per_tourn = []
-        for host, start, end in TOURNAMENTS:
+        for hosts, start, end in TOURNAMENTS:
             start_ts, end_ts = pd.Timestamp(start), pd.Timestamp(end)
             train = df[(df["date"] < start_ts) & (df["date"] >= start_ts - pd.DateOffset(years=TRAIN_YEARS))]
+            games = df[(df["date"] >= start_ts) & (df["date"] <= end_ts)]
+            if games.empty:        # tournament not started yet → skip
+                continue
             dc = DixonColesModel(ridge=ridge).fit(train.assign(weight_comp=1.0), reference_date=start_ts)
             elo = EloRatings().fit(df[df["date"] < start_ts])
-            games = df[(df["date"] >= start_ts) & (df["date"] <= end_ts)]
-            per_tourn.append((host, dc, elo, games))
+            per_tourn.append((hosts, dc, elo, games))
         _FIT_CACHE[key] = per_tourn
     return _FIT_CACHE[key]
 
 
 def evaluate(raw: pd.DataFrame, params: dict) -> dict:
     ll, br, rp, n = 0.0, 0.0, 0.0, 0
-    for host, dc, elo, games in _fits(raw, params["ridge"]):
+    for hosts, dc, elo, games in _fits(raw, params["ridge"]):
         eng = ProbabilityEngine(
             dc, elo,
             nudge=params["nudge"],
@@ -95,7 +100,7 @@ def evaluate(raw: pd.DataFrame, params: dict) -> dict:
             inter_conf_shrink=params["shrink"],
             temperature=params["temp"],
             squad_weight=0.0,
-            hosts=(host,),
+            hosts=hosts,
         )
         for row in games.itertuples(index=False):
             if row.home_team not in dc.attack_params or row.away_team not in dc.attack_params:

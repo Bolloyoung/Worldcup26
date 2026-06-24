@@ -63,8 +63,9 @@ st.caption(
     "48 teams, June 11 – July 19, 2026"
 )
 
-tab_title, tab_groups, tab_fixtures, tab_match, tab_about = st.tabs(
-    ["🥇 Title Race", "📋 Groups", "📅 Fixtures", "⚽ Match Predictor", "ℹ️ Model"]
+tab_title, tab_groups, tab_fixtures, tab_match, tab_accuracy, tab_about = st.tabs(
+    ["🥇 Title Race", "📋 Groups", "📅 Fixtures", "⚽ Match Predictor",
+     "📏 Accuracy", "ℹ️ Model"]
 )
 
 with tab_title:
@@ -213,6 +214,54 @@ with tab_match:
         md8.metric("DNB home", f"{dm['draw_no_bet_home'] * 100:.0f}%")
 
         st.caption(card["disclaimer"])
+
+with tab_accuracy:
+    eval_path = PRED / "evaluation.json"
+    if not eval_path.exists():
+        st.info(
+            "No evaluation yet. Run `python scripts/evaluate.py` after some "
+            "matches have been played to score the model against real results."
+        )
+    else:
+        ev = json.loads(eval_path.read_text())
+        wf = ev.get("walk_forward", {})
+        frozen = ev.get("frozen_log", {})
+        st.caption(
+            "How the model is doing against actual World Cup 2026 results. "
+            "**Walk-forward** re-fits before each matchday (leakage-free, covers "
+            "all played games); **frozen log** scores genuine pre-match "
+            "predictions and grows as the tournament goes on."
+        )
+        card = wf if wf.get("n", 0) else frozen
+        if not card.get("n", 0):
+            st.info(card.get("message", "No results scored yet."))
+        else:
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Matches scored", card["n"])
+            c2.metric("Favourite accuracy", f"{card['favourite_accuracy']:.0%}")
+            c3.metric("Log-loss", card["log_loss"],
+                      f"{card['skill_vs_baseline_pct']:+.1f}% vs coin-flip",
+                      delta_color="normal")
+            c4.metric("Avg prob on actual", card["avg_prob_on_actual"],
+                      f"baseline {card['baseline_avg_prob']}")
+
+            if card.get("reliability"):
+                st.markdown("**Reliability of the favourite pick** "
+                            "(predicted vs actual hit rate — closer is better)")
+                rel = pd.DataFrame(card["reliability"])
+                st.dataframe(rel, hide_index=True, use_container_width=False)
+
+            st.markdown("**Per-match results**")
+            mtbl = pd.DataFrame(card["matches"])[
+                ["date", "match", "predicted", "result", "favourite",
+                 "fav_correct", "top_score"]
+            ].rename(columns={"fav_correct": "fav_hit", "top_score": "model_top"})
+            st.dataframe(mtbl, hide_index=True, use_container_width=True)
+            st.caption(
+                "Re-tune the model on these results: `python scripts/backtest.py` "
+                "(now includes completed WC2026 matches), then adjust "
+                "`src/config.py` and re-run `scripts/run_simulation.py`."
+            )
 
 with tab_about:
     st.markdown(

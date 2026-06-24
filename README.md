@@ -23,6 +23,12 @@ pip install -r requirements.txt
 # Fetch latest results, fit models, simulate 10,000 tournaments (~10 s)
 python scripts/run_simulation.py --refresh-data
 
+# Score the model against actual results so far (after some matches played)
+python scripts/evaluate.py
+
+# Re-tune calibration on 2018/2022 + completed 2026 matches
+python scripts/backtest.py
+
 # Launch the dashboard
 streamlit run dashboard/app.py
 
@@ -107,6 +113,32 @@ support from the model's own score matrix — no external odds):
 `src/betting.py` exposes `betting_card(prediction)`. Decision support only —
 not financial advice; bet responsibly.
 
+## Measuring & re-tuning on live results
+
+The model learns from each match in two ways automatically — completed results
+enter the training fit (weighted 1.6× as World Cup games) and are locked into
+the simulation. Two scripts close the loop so you can *measure* and *re-tune*:
+
+- **`scripts/evaluate.py`** scores the model against actual WC2026 results:
+  log-loss, Brier, RPS, favourite accuracy, and a reliability table (predicted
+  vs actual hit rate). It uses a **walk-forward** reconstruction (fit strictly
+  before each matchday → predict → score), which is leakage-free and covers
+  every game played so far. It also scores the **frozen prediction log**
+  (`predictions/prediction_log.json`) — genuine pre-match predictions captured
+  by `run_simulation.py` before kickoff, the gold standard that grows over the
+  tournament. Surfaced in the dashboard's **Accuracy** tab.
+- **`scripts/backtest.py`** now tunes the calibration parameters on the 2018 &
+  2022 World Cups **plus completed 2026 matches**, so re-running it as the
+  tournament progresses adapts the settings to how teams are actually playing.
+
+Workflow after a matchday: `run_simulation.py --refresh-data` →
+`evaluate.py` (see how it's doing) → `backtest.py` (re-tune) → adjust
+`src/config.py` if the optimum has shifted → re-run the simulation.
+
+> The frozen log only scores fixtures logged *before* they were played, so it
+> starts empty and fills going forward; the walk-forward scorecard gives an
+> honest read on already-played matches immediately.
+
 ## Data sources
 
 - **[martj42/international_results](https://github.com/martj42/international_results)** — community-maintained CSV of every official men's international since 1872, refreshed after every matchday; also carries the scheduled WC2026 fixtures, from which the group draw is **cross-verified** at runtime (`verify_groups`).
@@ -122,6 +154,7 @@ worldcup26-prediction/
 │   ├── config.py               — every tunable parameter (backtest-informed)
 │   ├── confederations.py       — confederation map for inter-pool shrink
 │   ├── betting.py              — betting card + tie handling
+│   ├── evaluation.py           — metrics + frozen prediction log
 │   ├── squads.py               — squad strength index
 │   ├── data/fetch.py           — download, training set, fixtures, played-results lock-in
 │   ├── models/dixon_coles.py   — vectorised, ridge-regularised DC
@@ -130,13 +163,14 @@ worldcup26-prediction/
 │   ├── player_valuation/       — ported squad valuation (formula-only path)
 │   └── simulation/worldcup.py  — groups, thirds matching, bracket, Monte Carlo
 ├── scripts/
-│   ├── run_simulation.py       — end-to-end pipeline
-│   ├── backtest.py             — 2018/2022 WC calibration tuning
+│   ├── run_simulation.py       — end-to-end pipeline (+ freezes prediction log)
+│   ├── evaluate.py             — score model vs actual results → evaluation.json
+│   ├── backtest.py             — calibration tuning (2018/2022 + live 2026)
 │   └── fetch_squads.py         — validate squads.json + coverage
-├── dashboard/app.py            — Streamlit app (5 tabs; betting card in Match Predictor)
+├── dashboard/app.py            — Streamlit app (6 tabs; betting card + Accuracy)
 ├── data/squads/squads.json     — projected XIs (16 teams seeded; extend freely)
-├── predictions/                — committed JSON artifacts
-├── tests/                      — 28 tests (model, bracket, 495 thirds combos, betting, squads, lock-in)
+├── predictions/                — committed JSON artifacts (+ prediction_log, evaluation)
+├── tests/                      — 34 tests (model, bracket, 495 thirds, betting, squads, lock-in, evaluation)
 └── .github/workflows/update-predictions.yml — daily auto-refresh during the tournament
 ```
 

@@ -1,0 +1,175 @@
+{
+  "walk_forward": {
+    "n": 8,
+    "log_loss": 1.0309,
+    "brier": 0.6363,
+    "rps": 0.1815,
+    "favourite_accuracy": 0.625,
+    "avg_prob_on_actual": 0.4005,
+    "exact_score_rate": 0.125,
+    "baseline_log_loss": 1.0986,
+    "baseline_avg_prob": 0.3333,
+    "skill_vs_baseline_pct": 6.2,
+    "generated_at": "2026-06-24T11:32:58+00:00",
+    "reliability": [
+      {
+        "bin": "0.33-0.47",
+        "n": 3,
+        "mean_predicted": 0.416,
+        "empirical": 0.667
+      },
+      {
+        "bin": "0.47-0.60",
+        "n": 2,
+        "mean_predicted": 0.5,
+        "empirical": 1.0
+      },
+      {
+        "bin": "0.60-0.73",
+        "n": 2,
+        "mean_predicted": 0.707,
+        "empirical": 0.5
+      },
+      {
+        "bin": "0.73-0.87",
+        "n": 1,
+        "mean_predicted": 0.762,
+        "empirical": 0.0
+      }
+    ],
+    "matches": [
+      {
+        "date": "2026-06-11",
+        "match": "Mexico v South Africa",
+        "predicted": "68%/20%/12%",
+        "result": "2-0",
+        "actual": "H",
+        "favourite": "H",
+        "fav_prob": 0.6841957834789257,
+        "fav_correct": 1,
+        "prob_on_actual": 0.6841957834789257,
+        "log_loss": 0.37951116916015704,
+        "brier": 0.15313336524095889,
+        "rps": 0.056578036616556346,
+        "top_score": "2-0",
+        "exact_score": 1
+      },
+      {
+        "date": "2026-06-11",
+        "match": "South Korea v Czech Republic",
+        "predicted": "52%/24%/24%",
+        "result": "2-1",
+        "actual": "H",
+        "favourite": "H",
+        "fav_prob": 0.5193738003906184,
+        "fav_correct": 1,
+        "prob_on_actual": 0.5193738003906184,
+        "log_loss": 0.6551314230923126,
+        "brier": 0.346517836546998,
+        "rps": 0.14504929976025513,
+        "top_score": "1-1",
+        "exact_score": 0
+      },
+      {
+        "date": "2026-06-12",
+        "match": "Canada v Bosnia and Herzegovina",
+        "predicted": "76%/15%/8%",
+        "result": "1-1",
+        "actual": "D",
+        "favourite": "H",
+        "fav_prob": 0.7624933981683373,
+        "fav_correct": 0,
+        "prob_on_actual": 0.15451872776184064,
+        "log_loss": 1.8674399747033215,
+        "brier": 1.303121751198384,
+        "rps": 0.2941415847464636,
+        "top_score": "2-0",
+        "exact_score": 0
+      },
+      {
+        "date": "2026-06-12",
+        "match": "United States v Paraguay",
+        "predicted": "43%/27%/30%",
+        "result": "4-1",
+        "actual": "H",
+        "favourite": "H",
+        "fav_prob": 0.4308367984998037,
+        "fav_correct": 1,
+        "prob_on_actual": 0.4308367984998037,
+        "log_loss": 0.8420259183604237,
+        "brier": 0.4863349370175923,
+        "rps": 0.20666885182258346,
+        "top_score": "1-1",
+        "exact_score": 0
+      },
+      {
+        "date": "2026-06-13",
+        "match": "Qatar v Switzerland",
+        "predicted": "11%/16%/73%",
+        "result": "1-1",
+        "actual": "D",
+        "favourite": "A",
+        "fav_prob": 0.7305534104793985,
+        "fav_correct": 0,
+        "prob_on_actual": 0.15959969017490083,
+        "log_loss": 1.8350865352283328,
+        "brier": 1.2520473076130676,
+        "rps": 0.2728873134294724,
+        "top_score": "0-2",
+        "exact_score": 0
+      },
+      {
+        "date": "2026-06-13",
+        "match": "Brazil v Morocco",
+        "predicted": "35%/31%/33%",
+        "result": "1-1",
+        "actual": "D",
+        "favourite": "H",
+        "fav_prob": 0.35359564196226273,
+        "fav_correct": 0,
+        "prob_on_actual": 0.31202445613239405,
+        "log_loss": 1.164673709204877,
+        "brier": 0.7101501457728598,
+        "rps": 0.11841989840646584,
+        "top_score": "0-0",
+        "exact_score": 0
+      },
+      {
+        "date": "2026-06-13",
+        "match": "Haiti v Scotland",
+        "predicted": "28%/24%/48%",
+        "result": "0-1",
+        "actual": "A",
+        "favourite": "A",
+        "fav_prob": 0.4807939212471542,
+        "fav_correct": 1,
+        "prob_on_actual": 0.4807939212471542,
+        "log_loss": 0.7323165388378301,
+        "brier": 0.4053986994223858,
+        "rps": 0.17465265072661978,
+        "top_score": "1-1",
+        "exact_score": 0
+      },
+      {
+        "date": "2026-06-13",
+        "match": "Australia v Turkey",
+        "predicted": "46%/26%/28%",
+        "result": "2-0",
+        "actual": "H",
+        "favourite": "H",
+        "fav_prob": 0.462457836810247,
+        "fav_correct": 1,
+        "prob_on_actual": 0.462457836810247,
+        "log_loss": 0.7711998898388356,
+        "brier": 0.4336755013377849,
+        "rps": 0.18365049541038636,
+        "top_score": "1-1",
+        "exact_score": 0
+      }
+    ]
+  },
+  "frozen_log": {
+    "n": 0,
+    "message": "No predictions have a result yet."
+  }
+}

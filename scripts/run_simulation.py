@@ -27,6 +27,7 @@ from src.data.fetch import (
     verify_groups,
     wc2026_group_fixtures,
 )
+from src.evaluation import update_log
 from src.models.dixon_coles import DixonColesModel
 from src.models.elo import EloRatings
 from src.models.engine import ProbabilityEngine
@@ -108,6 +109,19 @@ def main() -> None:
         )
     with open(PREDICTIONS_DIR / "group_fixtures.json", "w") as f:
         json.dump(match_preds, f, indent=2)
+
+    # Freeze pre-match predictions for not-yet-played fixtures so the model can
+    # be scored honestly later (src/evaluation.py). Played fixtures keep their
+    # last pre-match entry; new results never overwrite a frozen prediction.
+    fixtures_with_group = fixtures.assign(
+        group=fixtures["home_team"].map(TEAM_TO_GROUP)
+    )
+    log = update_log(
+        PREDICTIONS_DIR / "prediction_log.json",
+        fixtures_with_group, engine, known,
+    )
+    scored = sum(1 for e in log.values() if (e["home"], e["away"]) in known)
+    print(f"    prediction log: {len(log)} fixtures tracked, {scored} now scorable")
 
     with open(PREDICTIONS_DIR / "model.json", "w") as f:
         json.dump(
