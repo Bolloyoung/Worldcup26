@@ -38,14 +38,24 @@ from src.squads import build_squad_index
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--sims", type=int, default=N_TOURNAMENTS)
-    parser.add_argument("--refresh-data", action="store_true")
+    # Data is refreshed by default so a stale cache can never silently freeze
+    # the model. --refresh-data is kept as an accepted no-op (used by the CI
+    # workflow); pass --cached to deliberately reuse the local copy offline.
+    parser.add_argument("--refresh-data", action="store_true",
+                        help="(default behaviour; kept for compatibility)")
+    parser.add_argument("--cached", action="store_true",
+                        help="reuse the cached results.csv instead of refetching")
     parser.add_argument("--seed", type=int, default=SEED)
     args = parser.parse_args()
 
     t0 = time.time()
     print("1/5 Downloading international results …")
-    raw = download_results(force=args.refresh_data)
+    raw = download_results(force=not args.cached)
     print(f"    {len(raw):,} matches in dataset")
+
+    # Time-decay anchor = today, so recent results always carry the most
+    # weight (never frozen to a fixed tournament date).
+    as_of = pd.Timestamp.now().normalize()
 
     fixtures = wc2026_group_fixtures(raw)
     verify_groups(fixtures, GROUPS)
@@ -53,7 +63,7 @@ def main() -> None:
 
     print("2/5 Fitting Dixon-Coles …")
     train = training_matches(raw)
-    dc = DixonColesModel(ridge=DC_RIDGE).fit(train, reference_date=pd.Timestamp("2026-06-11"))
+    dc = DixonColesModel(ridge=DC_RIDGE).fit(train, reference_date=as_of)
     print(
         f"    {len(train):,} matches, {len(dc.teams)} teams, "
         f"home_adv={dc.home_advantage:.3f}, rho={dc.rho:.3f}"
@@ -129,7 +139,8 @@ def main() -> None:
                 "dixon_coles": dc.to_dict(),
                 "elo": {t: elo.get(t) for t in TEAM_TO_GROUP},
                 "meta": {
-                    "fitted": "2026-06-11",
+                    "fitted": as_of.date().isoformat(),
+                    "n_played_matches": len(known),
                     "n_train_matches": len(train),
                     "n_tournaments": args.sims,
                     "top_finals": result["top_finals"],
