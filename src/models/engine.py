@@ -80,9 +80,17 @@ class ProbabilityEngine:
             gap *= self.inter_conf_shrink
         return gap
 
-    def _squad_ratio(self, home: str, away: str) -> float:
-        h = self.squad_index.get(home)
-        a = self.squad_index.get(away)
+    def _squad_ratio(
+        self, home: str, away: str,
+        override: tuple[float, float] | None = None,
+    ) -> float:
+        # A per-match override (e.g. from a confirmed starting XI) supersedes
+        # the projected per-team squad index for this match.
+        if override is not None:
+            h, a = override
+        else:
+            h = self.squad_index.get(home)
+            a = self.squad_index.get(away)
         if not h or not a:          # missing squad → graceful fallback
             return 1.0
         return h / a
@@ -90,6 +98,7 @@ class ProbabilityEngine:
     def lambdas(
         self, home: str, away: str, neutral: bool = True,
         host_adv_factor: float = 1.0,
+        squad_override: tuple[float, float] | None = None,
     ) -> tuple[float, float]:
         """Blended expected goals (DC × Elo × host × confed × squad)."""
         lam1, lam2 = self.dc.lambdas(home, away, neutral=True)
@@ -101,7 +110,7 @@ class ProbabilityEngine:
         lam2 /= shift
 
         if self.squad_weight > 0.0:
-            sr = self._squad_ratio(home, away) ** self.squad_weight
+            sr = self._squad_ratio(home, away, squad_override) ** self.squad_weight
             lam1 *= sr
             lam2 /= sr
         return lam1, lam2
@@ -128,8 +137,9 @@ class ProbabilityEngine:
     def predict(
         self, home: str, away: str, neutral: bool = True,
         host_adv_factor: float = 1.0, max_goals: int = MAX_GOALS,
+        squad_override: tuple[float, float] | None = None,
     ) -> dict[str, Any]:
-        lam1, lam2 = self.lambdas(home, away, neutral, host_adv_factor)
+        lam1, lam2 = self.lambdas(home, away, neutral, host_adv_factor, squad_override)
         mat = self.score_matrix_from_lambdas(lam1, lam2, max_goals)
 
         scorelines = [
@@ -150,8 +160,13 @@ class ProbabilityEngine:
             "top_scorelines": scorelines[:10],
             "elo_home": round(self.elo.get(home), 1),
             "elo_away": round(self.elo.get(away), 1),
-            "squad_index_home": round(self.squad_index.get(home, 1.0), 3),
-            "squad_index_away": round(self.squad_index.get(away, 1.0), 3),
+            "squad_index_home": round(
+                (squad_override[0] if squad_override else self.squad_index.get(home, 1.0)), 3
+            ),
+            "squad_index_away": round(
+                (squad_override[1] if squad_override else self.squad_index.get(away, 1.0)), 3
+            ),
+            "squad_source": "confirmed_xi" if squad_override else "projected",
         }
 
     def pen_shootout_p_home(self, home: str, away: str) -> float:

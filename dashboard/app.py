@@ -114,6 +114,31 @@ with tab_groups:
             st.dataframe(sub, hide_index=True, use_container_width=True)
 
 with tab_fixtures:
+    live_path = PRED / "live_updates.json"
+    if live_path.exists():
+        live = json.loads(live_path.read_text())
+        if live:
+            st.subheader("🔴 Confirmed-XI updates (≈1 hour before kickoff)")
+            st.caption(
+                "These matches have been re-valued from the **actual** starting "
+                "eleven (official teamsheet), overriding the projected squad."
+            )
+            rows = []
+            for u in live.values():
+                rows.append({
+                    "Date": u["date"],
+                    "Match": f"{u['home']} v {u['away']}",
+                    "Home %": round(u["p_home"] * 100, 1),
+                    "Draw %": round(u["p_draw"] * 100, 1),
+                    "Away %": round(u["p_away"] * 100, 1),
+                    "XI known (H/A)": f"{u['home_known']}/{u['away_known']}",
+                    "Source": u["lineup_source"],
+                    "Suggestion": u["betting_headline"],
+                })
+            st.dataframe(pd.DataFrame(rows).sort_values("Date"),
+                         hide_index=True, use_container_width=True)
+            st.divider()
+
     day = st.selectbox("Date", sorted(fixtures["date"].unique()))
     sub = fixtures[fixtures["date"] == day].copy()
     for c in ["p_home", "p_draw", "p_away"]:

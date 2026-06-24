@@ -51,6 +51,31 @@ def squad_values(squads: dict[str, list[dict]]) -> dict[str, float]:
     return out
 
 
+# Compression exponent: index = exp(SQUAD_COMPRESS * (log value - centre)).
+# Squad totals span ~2 orders of magnitude; 0.5 (sqrt) keeps the multiplier
+# bounded. Shared by the per-team index and per-match confirmed-XI overrides
+# so both live in the same strength space.
+SQUAD_COMPRESS = 0.5
+
+
+def field_log_centre(
+    squads: dict[str, list[dict]] | None = None,
+    path: Path | None = None,
+) -> float | None:
+    """Mean log squad value across the projected field (the index anchor)."""
+    if squads is None:
+        squads = load_squads(path)
+    values = squad_values(squads)
+    if len(values) < 2:
+        return None
+    return sum(math.log(max(v, 1.0)) for v in values.values()) / len(values)
+
+
+def value_to_index(value: float, centre: float) -> float:
+    """Map a squad value (EUR) to the normalised strength index."""
+    return math.exp(SQUAD_COMPRESS * (math.log(max(value, 1.0)) - centre))
+
+
 def build_squad_index(
     squads: dict[str, list[dict]] | None = None,
     path: Path | None = None,
@@ -66,6 +91,5 @@ def build_squad_index(
     values = squad_values(squads)
     if len(values) < 2:
         return {}
-    log_vals = {t: math.log(max(v, 1.0)) for t, v in values.items()}
-    centre = sum(log_vals.values()) / len(log_vals)
-    return {t: math.exp(0.5 * (lv - centre)) for t, lv in log_vals.items()}
+    centre = sum(math.log(max(v, 1.0)) for v in values.values()) / len(values)
+    return {t: value_to_index(v, centre) for t, v in values.items()}

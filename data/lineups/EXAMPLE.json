@@ -1,0 +1,15 @@
+{
+  "confirmed": true,
+  "source": "manual",
+  "_note": "Template only — rename to <date>_<Home>_<Away>.json to activate. 11 starters per side.",
+  "home": [
+    "David Raya", "Dani Carvajal", "Robin Le Normand", "Pau Cubarsí",
+    "Marc Cucurella", "Rodri", "Pedri", "Fabián Ruiz",
+    "Lamine Yamal", "Nico Williams", "Álvaro Morata"
+  ],
+  "away": [
+    "Dominik Livaković", "Josip Stanišić", "Joško Gvardiol", "Josip Šutalo",
+    "Borna Sosa", "Marcelo Brozović", "Luka Modrić", "Mateo Kovačić",
+    "Andrej Kramarić", "Ante Budimir", "Ivan Perišić"
+  ]
+}

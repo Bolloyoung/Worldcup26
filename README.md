@@ -139,6 +139,46 @@ Workflow after a matchday: `run_simulation.py --refresh-data` →
 > starts empty and fills going forward; the walk-forward scorecard gives an
 > honest read on already-played matches immediately.
 
+## Confirmed starting-XI updates (≈1 hour before kickoff)
+
+Roughly an hour before kickoff the official teamsheet is released. The system
+re-values both teams from the **actual eleven** — first-choice vs a
+rested/rotated side, a key player missing — and updates that match's
+prediction and betting card via a per-match squad override.
+
+- **Where the XI comes from:** a manual drop-in file in `data/lineups/`
+  (always reliable — see that folder's README) or a best-effort Sofascore
+  scrape (`src/lineup_scraper.py`; Cloudflare often 403s server-side, so it
+  degrades silently). The trigger is a *confirmed* teamsheet, which naturally
+  appears ~1h out — no kickoff-time bookkeeping needed.
+- **How it scores the XI:** [src/lineups.py](src/lineups.py) values the
+  identifiable starters with the player-valuation engine and maps the total
+  into the same normalised strength space as the projected index
+  (`squad_override` on `ProbabilityEngine.predict`). Unknown starters are
+  imputed at the XI's own average; if too few are identifiable it falls back
+  to the projected index (no bad signal).
+- **Automation:** [scripts/update_live.py](scripts/update_live.py) writes
+  `predictions/live_updates.json` (shown in the dashboard's Fixtures tab); the
+  `.github/workflows/live-lineups.yml` Action runs it every ~15 min during the
+  tournament and commits changes.
+
+```bash
+# drop data/lineups/2026-06-27_Croatia_Ghana.json, then:
+python scripts/update_live.py --no-scrape      # manual only
+python scripts/update_live.py                  # also try Sofascore
+```
+
+> **Honest limit:** the formula-only valuation (no API key) rates players by
+> league tier / age / position, so the override reliably captures coarse squad
+> quality and big lineup changes, but not two elite XIs differing by one rested
+> star. The bounded effect (`SQUAD_WEIGHT`) keeps it from ever dominating.
+> Adding per-player market values to the database (a one-time data upgrade)
+> would sharpen it.
+>
+> Note: **football-data.co.uk** (club-league results + odds) and the
+> **martj42** dataset (already this project's results source) do **not** carry
+> lineups — confirmed XIs require a lineup feed or the manual drop-in.
+
 ## Data sources
 
 - **[martj42/international_results](https://github.com/martj42/international_results)** — community-maintained CSV of every official men's international since 1872, refreshed after every matchday; also carries the scheduled WC2026 fixtures, from which the group draw is **cross-verified** at runtime (`verify_groups`).
@@ -155,6 +195,8 @@ worldcup26-prediction/
 │   ├── confederations.py       — confederation map for inter-pool shrink
 │   ├── betting.py              — betting card + tie handling
 │   ├── evaluation.py           — metrics + frozen prediction log
+│   ├── lineups.py              — confirmed-XI valuation + per-match override
+│   ├── lineup_scraper.py       — best-effort Sofascore lineup fetcher
 │   ├── squads.py               — squad strength index
 │   ├── data/fetch.py           — download, training set, fixtures, played-results lock-in
 │   ├── models/dixon_coles.py   — vectorised, ridge-regularised DC
@@ -166,12 +208,14 @@ worldcup26-prediction/
 │   ├── run_simulation.py       — end-to-end pipeline (+ freezes prediction log)
 │   ├── evaluate.py             — score model vs actual results → evaluation.json
 │   ├── backtest.py             — calibration tuning (2018/2022 + live 2026)
+│   ├── update_live.py          — confirmed-XI live updater (≈1h before kickoff)
 │   └── fetch_squads.py         — validate squads.json + coverage
-├── dashboard/app.py            — Streamlit app (6 tabs; betting card + Accuracy)
+├── dashboard/app.py            — Streamlit app (6 tabs; betting + Accuracy + live XI)
 ├── data/squads/squads.json     — projected XIs (16 teams seeded; extend freely)
-├── predictions/                — committed JSON artifacts (+ prediction_log, evaluation)
-├── tests/                      — 34 tests (model, bracket, 495 thirds, betting, squads, lock-in, evaluation)
-└── .github/workflows/update-predictions.yml — daily auto-refresh during the tournament
+├── data/lineups/               — confirmed-XI drop-in files (see its README)
+├── predictions/                — committed JSON artifacts (+ prediction_log, evaluation, live_updates)
+├── tests/                      — 42 tests (model, bracket, betting, squads, lock-in, evaluation, lineups)
+└── .github/workflows/          — daily forecast refresh + 15-min live-lineup updates
 ```
 
 ## Publish to GitHub
