@@ -733,13 +733,13 @@
     "away": "Iraq",
     "group": "I",
     "neutral": true,
-    "p_home": 0.5805,
-    "p_draw": 0.24,
-    "p_away": 0.1795,
+    "p_home": 0.5816,
+    "p_draw": 0.2403,
+    "p_away": 0.1781,
     "xg_home": 1.66,
-    "xg_away": 0.74,
+    "xg_away": 0.73,
     "top_score": "1-0",
-    "logged_at": "2026-06-25T09:22:02+00:00"
+    "logged_at": "2026-06-26T09:27:32+00:00"
   },
   "2026-06-26|Norway|France": {
     "date": "2026-06-26",
@@ -747,13 +747,13 @@
     "away": "France",
     "group": "I",
     "neutral": true,
-    "p_home": 0.2825,
-    "p_draw": 0.2296,
-    "p_away": 0.4879,
+    "p_home": 0.2835,
+    "p_draw": 0.2303,
+    "p_away": 0.4862,
     "xg_home": 1.23,
     "xg_away": 1.74,
     "top_score": "1-1",
-    "logged_at": "2026-06-25T09:22:02+00:00"
+    "logged_at": "2026-06-26T09:27:32+00:00"
   },
   "2026-06-26|Uruguay|Spain": {
     "date": "2026-06-26",
@@ -761,13 +761,13 @@
     "away": "Spain",
     "group": "H",
     "neutral": true,
-    "p_home": 0.1676,
-    "p_draw": 0.2481,
-    "p_away": 0.5843,
+    "p_home": 0.1662,
+    "p_draw": 0.2482,
+    "p_away": 0.5856,
     "xg_home": 0.65,
-    "xg_away": 1.58,
+    "xg_away": 1.59,
     "top_score": "0-1",
-    "logged_at": "2026-06-25T09:22:02+00:00"
+    "logged_at": "2026-06-26T09:27:32+00:00"
   },
   "2026-06-26|New Zealand|Belgium": {
     "date": "2026-06-26",
@@ -775,13 +775,13 @@
     "away": "Belgium",
     "group": "G",
     "neutral": true,
-    "p_home": 0.1727,
-    "p_draw": 0.2054,
-    "p_away": 0.6218,
+    "p_home": 0.1718,
+    "p_draw": 0.2052,
+    "p_away": 0.6229,
     "xg_home": 0.89,
-    "xg_away": 2.04,
+    "xg_away": 2.05,
     "top_score": "0-2",
-    "logged_at": "2026-06-25T09:22:02+00:00"
+    "logged_at": "2026-06-26T09:27:32+00:00"
   },
   "2026-06-26|Egypt|Iran": {
     "date": "2026-06-26",
@@ -789,13 +789,13 @@
     "away": "Iran",
     "group": "G",
     "neutral": true,
-    "p_home": 0.3198,
-    "p_draw": 0.3026,
-    "p_away": 0.3775,
-    "xg_home": 0.9,
+    "p_home": 0.321,
+    "p_draw": 0.3034,
+    "p_away": 0.3756,
+    "xg_home": 0.91,
     "xg_away": 1.02,
     "top_score": "0-0",
-    "logged_at": "2026-06-25T09:22:02+00:00"
+    "logged_at": "2026-06-26T09:27:32+00:00"
   },
   "2026-06-26|Cape Verde|Saudi Arabia": {
     "date": "2026-06-26",
@@ -803,13 +803,13 @@
     "away": "Saudi Arabia",
     "group": "H",
     "neutral": true,
-    "p_home": 0.3502,
-    "p_draw": 0.3119,
-    "p_away": 0.3379,
+    "p_home": 0.3519,
+    "p_draw": 0.3124,
+    "p_away": 0.3357,
     "xg_home": 0.93,
     "xg_away": 0.9,
     "top_score": "0-0",
-    "logged_at": "2026-06-25T09:22:02+00:00"
+    "logged_at": "2026-06-26T09:27:32+00:00"
   },
   "2026-06-27|Panama|England": {
     "date": "2026-06-27",
@@ -817,13 +817,13 @@
     "away": "England",
     "group": "L",
     "neutral": true,
-    "p_home": 0.1007,
-    "p_draw": 0.1827,
-    "p_away": 0.7165,
+    "p_home": 0.0995,
+    "p_draw": 0.1823,
+    "p_away": 0.7182,
     "xg_home": 0.57,
     "xg_away": 2.16,
     "top_score": "0-2",
-    "logged_at": "2026-06-25T09:22:02+00:00"
+    "logged_at": "2026-06-26T09:27:32+00:00"
   },
   "2026-06-27|Algeria|Austria": {
     "date": "2026-06-27",
@@ -831,13 +831,13 @@
     "away": "Austria",
     "group": "J",
     "neutral": true,
-    "p_home": 0.3783,
-    "p_draw": 0.2677,
-    "p_away": 0.3539,
-    "xg_home": 1.23,
+    "p_home": 0.3766,
+    "p_draw": 0.2687,
+    "p_away": 0.3548,
+    "xg_home": 1.22,
     "xg_away": 1.17,
     "top_score": "1-1",
-    "logged_at": "2026-06-25T09:22:02+00:00"
+    "logged_at": "2026-06-26T09:27:32+00:00"
   },
   "2026-06-27|Jordan|Argentina": {
     "date": "2026-06-27",
@@ -845,13 +845,13 @@
     "away": "Argentina",
     "group": "J",
     "neutral": true,
-    "p_home": 0.0445,
-    "p_draw": 0.1127,
-    "p_away": 0.8429,
+    "p_home": 0.0436,
+    "p_draw": 0.1118,
+    "p_away": 0.8445,
     "xg_home": 0.43,
-    "xg_away": 2.88,
+    "xg_away": 2.89,
     "top_score": "0-2",
-    "logged_at": "2026-06-25T09:22:02+00:00"
+    "logged_at": "2026-06-26T09:27:32+00:00"
   },
   "2026-06-27|Colombia|Portugal": {
     "date": "2026-06-27",
@@ -859,13 +859,13 @@
     "away": "Portugal",
     "group": "K",
     "neutral": true,
-    "p_home": 0.3371,
-    "p_draw": 0.2481,
-    "p_away": 0.4148,
+    "p_home": 0.3365,
+    "p_draw": 0.2485,
+    "p_away": 0.415,
     "xg_home": 1.27,
     "xg_away": 1.45,
     "top_score": "1-1",
-    "logged_at": "2026-06-25T09:22:02+00:00"
+    "logged_at": "2026-06-26T09:27:32+00:00"
   },
   "2026-06-27|DR Congo|Uzbekistan": {
     "date": "2026-06-27",
@@ -873,13 +873,13 @@
     "away": "Uzbekistan",
     "group": "K",
     "neutral": true,
-    "p_home": 0.3984,
-    "p_draw": 0.3315,
-    "p_away": 0.2701,
+    "p_home": 0.399,
+    "p_draw": 0.332,
+    "p_away": 0.269,
     "xg_home": 0.93,
-    "xg_away": 0.69,
+    "xg_away": 0.68,
     "top_score": "0-0",
-    "logged_at": "2026-06-25T09:22:02+00:00"
+    "logged_at": "2026-06-26T09:27:32+00:00"
   },
   "2026-06-27|Croatia|Ghana": {
     "date": "2026-06-27",
@@ -887,13 +887,13 @@
     "away": "Ghana",
     "group": "L",
     "neutral": true,
-    "p_home": 0.5193,
-    "p_draw": 0.2627,
-    "p_away": 0.218,
-    "xg_home": 1.45,
-    "xg_away": 0.79,
+    "p_home": 0.5216,
+    "p_draw": 0.2625,
+    "p_away": 0.2159,
+    "xg_home": 1.46,
+    "xg_away": 0.78,
     "top_score": "1-0",
-    "logged_at": "2026-06-25T09:22:02+00:00"
+    "logged_at": "2026-06-26T09:27:32+00:00"
   },
   "2026-06-11|Mexico|South Africa": {
     "date": "2026-06-11",
