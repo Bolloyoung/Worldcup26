@@ -45,6 +45,22 @@ def cached_fixtures():
     return wc2026_group_fixtures(download_results())
 
 
+def test_knockout_lockin_and_elimination():
+    """A known KO result is honoured, and its loser can never advance."""
+    known_ko = {frozenset({"A", "B"}): "A"}
+    sim = WorldCupSimulator(
+        _DummyEngine(), fixtures=None, n_tournaments=1, seed=0,
+        known_ko=known_ko,
+    )
+    assert sim.eliminated == {"B"}
+    # locked pairing → actual winner regardless of engine
+    assert sim._ko_winner("A", "B") == "A"
+    assert sim._ko_winner("B", "A") == "A"
+    # eliminated team loses any other KO matchup, both orderings
+    assert sim._ko_winner("B", "C") == "C"
+    assert sim._ko_winner("C", "B") == "C"
+
+
 def test_draw_has_48_unique_teams_in_12_groups():
     assert len(GROUPS) == 12
     all_teams = [t for ts in GROUPS.values() for t in ts]

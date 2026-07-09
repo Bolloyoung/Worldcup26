@@ -18,6 +18,13 @@ RESULTS_CSV_URL = (
 )
 RESULTS_CSV_PATH = RAW_DIR / "results.csv"
 
+# Penalty-shootout outcomes (who advanced when a knockout was drawn after 90').
+SHOOTOUTS_CSV_URL = (
+    "https://raw.githubusercontent.com/martj42/international_results/"
+    "master/shootouts.csv"
+)
+SHOOTOUTS_CSV_PATH = RAW_DIR / "shootouts.csv"
+
 # Training window: two full World Cup cycles.
 TRAIN_START = "2018-01-01"
 

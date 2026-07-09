@@ -23,6 +23,8 @@ from ..config import (
     RAW_DIR,
     RESULTS_CSV_PATH,
     RESULTS_CSV_URL,
+    SHOOTOUTS_CSV_PATH,
+    SHOOTOUTS_CSV_URL,
     TRAIN_START,
 )
 
@@ -146,6 +148,67 @@ def played_results(df: pd.DataFrame | None = None) -> dict[tuple[str, str], tupl
         (r["home_team"], r["away_team"]): (int(r["home_score"]), int(r["away_score"]))
         for _, r in out.iterrows()
     }
+
+
+def download_shootouts(force: bool = False) -> pd.DataFrame:
+    """Download (or load cached) penalty-shootout results CSV."""
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    if SHOOTOUTS_CSV_PATH.exists() and not force:
+        return pd.read_csv(SHOOTOUTS_CSV_PATH)
+    with urllib.request.urlopen(SHOOTOUTS_CSV_URL, timeout=60) as resp:
+        raw = resp.read().decode("utf-8")
+    df = pd.read_csv(io.StringIO(raw))
+    df.to_csv(SHOOTOUTS_CSV_PATH, index=False)
+    return df
+
+
+def played_knockout_results(
+    df: pd.DataFrame | None = None,
+    shootouts: pd.DataFrame | None = None,
+) -> dict[frozenset[str], str]:
+    """
+    Winners of completed World Cup knockout matches (after the group stage),
+    keyed by the unordered pair of teams: {frozenset({home, away}): winner}.
+
+    A match decided in 90 min uses the higher score; a draw is resolved via
+    the shootouts file. Lets the simulator lock the knockout bracket to reality
+    so eliminated teams drop to zero and the forecast reflects who is still in.
+    """
+    if df is None:
+        df = download_results()
+    if shootouts is None:
+        try:
+            shootouts = download_shootouts()
+        except Exception:
+            shootouts = pd.DataFrame(columns=["date", "home_team", "away_team", "winner"])
+
+    out = df.copy()
+    out["date"] = pd.to_datetime(out["date"])
+    mask = (
+        (out["tournament"] == "FIFA World Cup")
+        & (out["date"] > pd.Timestamp(GROUP_STAGE_END))
+        & out["home_score"].notna()
+        & out["away_score"].notna()
+    )
+    ko = out[mask]
+
+    shoot = {}
+    if len(shootouts):
+        for _, r in shootouts.iterrows():
+            shoot[frozenset({r["home_team"], r["away_team"]})] = r["winner"]
+
+    winners: dict[frozenset[str], str] = {}
+    for _, r in ko.iterrows():
+        pair = frozenset({r["home_team"], r["away_team"]})
+        hs, as_ = int(r["home_score"]), int(r["away_score"])
+        if hs > as_:
+            winners[pair] = r["home_team"]
+        elif as_ > hs:
+            winners[pair] = r["away_team"]
+        elif pair in shoot:
+            winners[pair] = shoot[pair]
+        # else: drawn with no shootout record — leave unresolved (will simulate)
+    return winners
 
 
 def verify_groups(fixtures: pd.DataFrame, groups: dict[str, list[str]]) -> None:

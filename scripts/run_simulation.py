@@ -22,6 +22,7 @@ from src.config import DC_RIDGE, ELO_START_DATE, N_TOURNAMENTS, PREDICTIONS_DIR,
 from src.data.fetch import (
     download_results,
     elo_matches,
+    played_knockout_results,
     played_results,
     training_matches,
     verify_groups,
@@ -79,11 +80,12 @@ def main() -> None:
     print(f"    squad index built for {len(squad_index)} teams")
 
     known = played_results(raw)
+    known_ko = played_knockout_results(raw)
     print(f"4/5 Simulating {args.sims:,} tournaments "
-          f"(conditioned on {len(known)} played matches) …")
+          f"(conditioned on {len(known)} group + {len(known_ko)} knockout results) …")
     sim = WorldCupSimulator(
         engine, fixtures, n_tournaments=args.sims, seed=args.seed,
-        known_results=known,
+        known_results=known, known_ko=known_ko,
     )
     result = sim.run()
     forecast = result["forecast"]

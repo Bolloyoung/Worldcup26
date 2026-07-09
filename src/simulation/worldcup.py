@@ -130,6 +130,7 @@ class WorldCupSimulator:
         seed: int = SEED,
         max_goals: int = MAX_GOALS,
         known_results: dict[tuple[str, str], tuple[int, int]] | None = None,
+        known_ko: dict[frozenset[str], str] | None = None,
     ) -> None:
         self.engine = engine
         self.fixtures = fixtures
@@ -138,6 +139,16 @@ class WorldCupSimulator:
         # Completed group fixtures, locked to their actual scores so the
         # forecast conditions on matches that have already been played.
         self.known_results = known_results or {}
+        # Completed knockout matches, locked to their actual advancer (keyed by
+        # the unordered team pair) so eliminated teams drop to zero.
+        self.known_ko = known_ko or {}
+        # Any team that has lost a knockout match is out of a single-elimination
+        # tournament — it can never win another KO match, even in simulated
+        # bracket paths that diverge from reality (prevents probability leakage).
+        self.eliminated: set[str] = {
+            next(iter(pair - {winner})) for pair, winner in self.known_ko.items()
+            if len(pair - {winner}) == 1
+        }
         self._rng = np.random.default_rng(seed)
         self._table_cache: dict[tuple, np.ndarray] = {}
 
@@ -171,7 +182,15 @@ class WorldCupSimulator:
         return np.divmod(idx, self.max_goals + 1)
 
     def _ko_winner(self, home: str, away: str) -> str:
-        """Simulate one knockout match (90' + ET + pens). Returns winner."""
+        """Winner of one knockout match. Locked to reality if already played."""
+        actual = self.known_ko.get(frozenset({home, away}))
+        if actual is not None:
+            return actual
+        # A team already knocked out cannot advance further.
+        if home in self.eliminated and away not in self.eliminated:
+            return away
+        if away in self.eliminated and home not in self.eliminated:
+            return home
         neutral = home not in HOSTS
         f = KO_HOST_ADV_FACTOR if not neutral else 1.0
         h, a = self._sample_scores(home, away, neutral, f, 1)
